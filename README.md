@@ -1,6 +1,7 @@
 # React comment box example
 
-This is the React comment box example from [the React tutorial](http://facebook.github.io/react/docs/tutorial.html).
+This is a modified version of the React comment box example from [the React tutorial](http://facebook.github.io/react/docs/tutorial.html).
+It adds a Backbone collection to handle data and sync with the server. 
 
 ## To use
 
@@ -9,4 +10,4 @@ npm install
 node server.js
 ```
 
-And visit http://localhost:3000/. Try opening multiple tabs!
+Visit http://localhost:3000/. Try opening multiple tabs!
