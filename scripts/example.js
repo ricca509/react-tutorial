@@ -2,88 +2,98 @@
 
 var converter = new Showdown.converter();
 
-var Comment = React.createClass({
-  render: function() {
-    var rawMarkup = converter.makeHtml(this.props.children.toString());
-    return (
-      <div className="comment">
-        <h2 className="commentAuthor">{this.props.author}</h2>
-        <span dangerouslySetInnerHTML={{__html: rawMarkup}} />
-      </div>
-    );
-  }
+var CommentsCollection = Backbone.Collection.extend({
+    url: '/comments.json'
 });
 
+var commentsCollection = new CommentsCollection();
+
 var CommentBox = React.createClass({
-  loadCommentsFromServer: function() {
-    $.ajax({
-      url: this.props.url,
-      success: function(data) {
-        this.setState({data: data});
-      }.bind(this)
-    });
-  },
-  handleCommentSubmit: function(comment) {
-    var comments = this.state.data;
-    comments.push(comment);
-    this.setState({data: comments});
-    $.ajax({
-      url: this.props.url,
-      type: 'POST',
-      data: comment,
-      success: function(data) {
-        this.setState({data: data});
-      }.bind(this)
-    });
-  },
-  getInitialState: function() {
-    return {data: []};
-  },
-  componentWillMount: function() {
-    this.loadCommentsFromServer();
-    setInterval(this.loadCommentsFromServer, this.props.pollInterval);
-  },
-  render: function() {
-    return (
-      <div className="commentBox">
-        <h1>Comments</h1>
-        <CommentList data={this.state.data} />
-        <CommentForm onCommentSubmit={this.handleCommentSubmit} />
-      </div>
-    );
-  }
+    render: function () {
+        return (
+            <div className="commentBox">
+                <h1>Comments</h1>
+                <CommentForm collection={ commentsCollection } />
+                <CommentList collection={ commentsCollection } pollInterval={ this.props.pollInterval } />
+            </div>
+        );
+    }
+});
+
+var Comment = React.createClass({
+    render: function () {
+        var rawMarkup = converter.makeHtml(this.props.children.toString());
+        return (
+            <li className="comment">
+                <b className="commentAuthor">Author: {this.props.author}</b>
+                <span dangerouslySetInnerHTML={ {__html: rawMarkup} } />
+            </li>
+        );
+    }
 });
 
 var CommentList = React.createClass({
-  render: function() {
-    var commentNodes = this.props.data.map(function (comment, index) {
-      return <Comment key={index} author={comment.author}>{comment.text}</Comment>;
-    });
-    return <div className="commentList">{commentNodes}</div>;
-  }
+    getInitialState: function () {
+        return ({collection: this.props.collection});
+    },
+    componentWillMount: function () {
+        this.props.collection.on('add remove change', this.collectionChanged, this);
+
+        this.props.collection.fetch();
+        setInterval(function () {
+            this.props.collection.fetch();
+        }.bind(this), this.props.pollInterval);
+    },
+    componentWillUnmount: function () {
+        this.props.collection.off(null, null, context);
+    },
+    collectionChanged: function () {
+        this.setState({collection: this.props.collection});
+    },
+    getCommentComponents: function () {
+        return this.state.collection.map(function (comment, index) {
+            return (
+                <Comment key={ index } author={ comment.get('author') }>
+                    { comment.get('text') }
+                </Comment>
+            );
+        }).reverse();
+    },
+    render: function () {
+        return <ul className="commentList">{ this.getCommentComponents() }</ul>;
+    }
 });
 
 var CommentForm = React.createClass({
-  handleSubmit: function() {
-    var author = this.refs.author.getDOMNode().value.trim();
-    var text = this.refs.text.getDOMNode().value.trim();
-    this.props.onCommentSubmit({author: author, text: text});
-    this.refs.author.getDOMNode().value = '';
-    this.refs.text.getDOMNode().value = '';
-    return false;
-  },
-  render: function() {
-    return (
-      <form className="commentForm" onSubmit={this.handleSubmit}>
-        <input type="text" placeholder="Your name" ref="author" />
-        <input type="text" placeholder="Say something..." ref="text" />
-        <input type="submit" value="Post" />
-      </form>
-    );
-  }
+    handleSubmit: function (e) {
+        e.preventDefault();
+        var author = this.refs.author.getDOMNode().value.trim();
+        var text = this.refs.text.getDOMNode().value.trim();
+        this.refs.author.getDOMNode().value = '';
+        this.refs.text.getDOMNode().value = '';
+
+        this.changeCollection({author: author, text: text})
+
+        return false;
+    },
+    changeCollection: function (data) {
+        this.props.collection.create({
+            author: data.author,
+            text: data.text
+        });
+    },
+    render: function () {
+        return (
+            <form className="commentForm" onSubmit={ this.handleSubmit }>
+                <input type="text" placeholder="Your name" ref="author" />
+                <input type="text" placeholder="Say something..." ref="text" />
+                <input type="submit" value="Post" />
+            </form>
+        );
+    }
 });
 
 React.renderComponent(
-  <CommentBox url="/comments.json" pollInterval={2000} />,
-  document.getElementById('container')
+    <CommentBox pollInterval={2000} />,
+    document.getElementById('container')
 );

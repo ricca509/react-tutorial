@@ -6,9 +6,13 @@ var express = require('express'),
 
 var app = express();
 
-var comments = [{author: 'Pete Hunt', text: 'Hey there!'}];
+var comments = [
+    {author: 'Pete Hunt', text: 'Hey there!'},
+    {author: 'Riccardo Coppola', text: 'Hey!'}
+];
 
 app.use('/', serveStatic(__dirname));
+app.use(bodyParser.json());
 app.use(bodyParser.urlencoded());
 
 app.get('/comments.json', function(req, res) {
